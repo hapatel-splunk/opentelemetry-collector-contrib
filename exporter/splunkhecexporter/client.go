@@ -204,14 +204,14 @@ func (c *client) fillLogsBuffer(logs plog.Logs, buf buffer, is iterState) (iterS
 					b = []byte(logRecord.Body().AsString() + "\n")
 				} else {
 					// Parsing log record to Splunk event.
-					event := mapLogRecordToSplunkEvent(rl.Resource(), logRecord, c.config)
-					if event == nil {
-						// TODO record this drop as a metric
+					event, err := mapLogRecordToSplunkEvent(rl.Resource(), logRecord, c.config)
+					if err != nil {
+						permanentErrors = append(permanentErrors, consumererror.NewPermanent(fmt.Errorf(
+							"dropped log event: %v, error: %w", logRecord, err)))
 						continue
 					}
 
 					// JSON encoding event and writing to buffer.
-					var err error
 					b, err = marshalEvent(event, c.config.MaxEventSize)
 					if err != nil {
 						permanentErrors = append(permanentErrors, consumererror.NewPermanent(fmt.Errorf(
@@ -675,9 +675,9 @@ func buildHTTPHeaders(config *Config, buildInfo component.BuildInfo) map[string]
 	}
 }
 
-// marshalEvent marshals an event to JSON
+// marshalEvent marshals an event to JSON without HTML escaping (<, >, &)
 func marshalEvent(event *splunk.Event, sizeLimit uint) ([]byte, error) {
-	b, err := json.Marshal(event)
+	b, err := json.MarshalWithOption(event, json.DisableHTMLEscape())
 	if err != nil {
 		return nil, err
 	}

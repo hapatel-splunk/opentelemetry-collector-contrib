@@ -410,7 +410,7 @@ func Test_splunkhecReceiver_handleReq(t *testing.T) {
 			name: "event_required_error",
 			req: func() *http.Request {
 				nilEventMsg := buildSplunkHecMsg(currentTime, 3)
-				nilEventMsg.Event = nil
+				nilEventMsg.Event = ""
 				msgBytes, err := json.Marshal(nilEventMsg)
 				require.NoError(t, err)
 				req := httptest.NewRequest(http.MethodPost, "http://localhost/foo", bytes.NewReader(msgBytes))
@@ -435,7 +435,8 @@ func Test_splunkhecReceiver_handleReq(t *testing.T) {
 			assertResponse: func(t *testing.T, resp *http.Response, body any) {
 				status := resp.StatusCode
 				assert.Equal(t, http.StatusBadRequest, status)
-				assert.Equal(t, map[string]any{"code": float64(13), "text": "Event field cannot be blank"}, body)
+				// With Event as string, empty string maps to "event required" (code 12)
+				assert.Equal(t, map[string]any{"code": float64(12), "text": "Event field is required"}, body)
 			},
 		},
 		{
@@ -1057,7 +1058,7 @@ func Test_Metrics_splunkhecReceiver_IndexSourceTypePassthrough(t *testing.T) {
 	}
 }
 
-func buildSplunkHecMetricsMsg(event any, time float64, value int64, dimensions uint) *splunk.Event {
+func buildSplunkHecMetricsMsg(event string, time float64, value int64, dimensions uint) *splunk.Event {
 	ev := &splunk.Event{
 		Time:  time,
 		Event: event,

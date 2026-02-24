@@ -45,7 +45,7 @@ func TestSingleValue(t *testing.T) {
 
 func TestIsMetric(t *testing.T) {
 	ev := Event{
-		Event: map[string]any{},
+		Event: "{}",
 	}
 	assert.False(t, ev.IsMetric())
 	metric := Event{
@@ -69,7 +69,7 @@ func TestIsMetric(t *testing.T) {
 	}
 	assert.True(t, metric.IsMetric())
 	arr := Event{
-		Event: []any{"foo", "bar"},
+		Event: `["foo","bar"]`,
 	}
 	assert.False(t, arr.IsMetric())
 	yo := Event{
@@ -150,4 +150,23 @@ func TestDecodeJsonWithInvalidNumberTime(t *testing.T) {
 	var msg Event
 	err := dec.Decode(&msg)
 	assert.Error(t, err)
+}
+
+func TestEventNoHTMLEscaping(t *testing.T) {
+	// Unmarshal: input with <script> should preserve the characters
+	dec := json.NewDecoder(strings.NewReader(`{"event":"<script>"}`))
+	dec.More()
+	var msg Event
+	err := dec.Decode(&msg)
+	assert.NoError(t, err)
+	assert.Equal(t, "<script>", msg.Event)
+
+	// Marshal: output should not escape < and > to \u003c and \u003e.
+	// The exporter uses json.MarshalWithOption(..., DisableHTMLEscape). Verify marshalNoHTMLEscape produces correct output.
+	type event Event
+	b, err := marshalNoHTMLEscape((*event)(&msg))
+	assert.NoError(t, err)
+	assert.NotContains(t, string(b), `\u003c`)
+	assert.NotContains(t, string(b), `\u003e`)
+	assert.Contains(t, string(b), "<script>")
 }

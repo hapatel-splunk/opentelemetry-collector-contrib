@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"go.opentelemetry.io/collector/pdata/pcommon"
 	"go.opentelemetry.io/collector/pdata/plog"
 	conventions "go.opentelemetry.io/collector/semconv/v1.27.0"
@@ -232,7 +233,7 @@ func Test_mapLogRecordToSplunkEvent(t *testing.T) {
 				return config
 			},
 			wantSplunkEvents: []*splunk.Event{
-				commonLogSplunkEvent(float64(42), ts, map[string]any{"custom": "custom"}, "myhost", "myapp", "myapp-type"),
+				commonLogSplunkEvent("42", ts, map[string]any{"custom": "custom"}, "myhost", "myapp", "myapp-type"),
 			},
 		},
 		{
@@ -255,7 +256,7 @@ func Test_mapLogRecordToSplunkEvent(t *testing.T) {
 				return config
 			},
 			wantSplunkEvents: []*splunk.Event{
-				commonLogSplunkEvent(int64(42), ts, map[string]any{"custom": "custom"}, "myhost", "myapp", "myapp-type"),
+				commonLogSplunkEvent("42", ts, map[string]any{"custom": "custom"}, "myhost", "myapp", "myapp-type"),
 			},
 		},
 		{
@@ -278,7 +279,7 @@ func Test_mapLogRecordToSplunkEvent(t *testing.T) {
 				return config
 			},
 			wantSplunkEvents: []*splunk.Event{
-				commonLogSplunkEvent(true, ts, map[string]any{"custom": "custom"}, "myhost", "myapp", "myapp-type"),
+				commonLogSplunkEvent("true", ts, map[string]any{"custom": "custom"}, "myhost", "myapp", "myapp-type"),
 			},
 		},
 		{
@@ -305,7 +306,7 @@ func Test_mapLogRecordToSplunkEvent(t *testing.T) {
 				return config
 			},
 			wantSplunkEvents: []*splunk.Event{
-				commonLogSplunkEvent(map[string]any{"23": float64(45), "foo": "bar"}, ts,
+				commonLogSplunkEvent(`{"23":45,"foo":"bar"}`, ts,
 					map[string]any{"custom": "custom"},
 					"myhost", "myapp", "myapp-type"),
 			},
@@ -353,7 +354,7 @@ func Test_mapLogRecordToSplunkEvent(t *testing.T) {
 				return config
 			},
 			wantSplunkEvents: []*splunk.Event{
-				commonLogSplunkEvent([]any{"foo"}, ts, map[string]any{"custom": "custom"},
+				commonLogSplunkEvent(`["foo"]`, ts, map[string]any{"custom": "custom"},
 					"myhost", "myapp", "myapp-type"),
 			},
 		},
@@ -418,7 +419,8 @@ func Test_mapLogRecordToSplunkEvent(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			for _, want := range tt.wantSplunkEvents {
 				config := tt.configDataFn()
-				got := mapLogRecordToSplunkEvent(tt.logResourceFn(), tt.logRecordFn(), config)
+				got, err := mapLogRecordToSplunkEvent(tt.logResourceFn(), tt.logRecordFn(), config)
+				require.NoError(t, err)
 				assert.EqualValues(t, want, got)
 			}
 		})
@@ -426,7 +428,7 @@ func Test_mapLogRecordToSplunkEvent(t *testing.T) {
 }
 
 func commonLogSplunkEvent(
-	event any,
+	event string,
 	ts pcommon.Timestamp,
 	fields map[string]any,
 	host string,
@@ -444,7 +446,8 @@ func commonLogSplunkEvent(
 }
 
 func Test_emptyLogRecord(t *testing.T) {
-	event := mapLogRecordToSplunkEvent(pcommon.NewResource(), plog.NewLogRecord(), &Config{})
+	event, err := mapLogRecordToSplunkEvent(pcommon.NewResource(), plog.NewLogRecord(), &Config{})
+	assert.Error(t, err)
 	assert.Nil(t, event)
 }
 

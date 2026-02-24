@@ -397,10 +397,10 @@ func TestReceiveTracesBatches(t *testing.T) {
 			}(),
 			want: wantType{
 				batches: [][]string{
-					{`"start_time":1`,
-						`"start_time":2`,
-						`start_time":3`,
-						`start_time":4`},
+					{`\"start_time\":1000000000`,
+						`\"start_time\":2000000000`,
+						`\"start_time\":3000000000`,
+						`\"start_time\":4000000000`},
 				},
 				numBatches: 1,
 			},
@@ -410,16 +410,16 @@ func TestReceiveTracesBatches(t *testing.T) {
 			traces: createTraceData(1, 4),
 			conf: func() *Config {
 				cfg := NewFactory().CreateDefaultConfig().(*Config)
-				cfg.MaxContentLengthTraces = 320
+				cfg.MaxContentLengthTraces = 400
 				cfg.DisableCompression = true
 				return cfg
 			}(),
 			want: wantType{
 				batches: [][]string{
-					{`"start_time":1`},
-					{`"start_time":2`},
-					{`"start_time":3`},
-					{`"start_time":4`},
+					{`\"start_time\":1000000000`},
+					{`\"start_time\":2000000000`},
+					{`\"start_time\":3000000000`},
+					{`\"start_time\":4000000000`},
 				},
 				numBatches: 4,
 			},
@@ -429,14 +429,14 @@ func TestReceiveTracesBatches(t *testing.T) {
 			traces: createTraceData(1, 4),
 			conf: func() *Config {
 				cfg := NewFactory().CreateDefaultConfig().(*Config)
-				cfg.MaxContentLengthTraces = 640
+				cfg.MaxContentLengthTraces = 800
 				cfg.DisableCompression = true
 				return cfg
 			}(),
 			want: wantType{
 				batches: [][]string{
-					{`"start_time":1`, `"start_time":2`},
-					{`"start_time":3`, `"start_time":4`},
+					{`\"start_time\":1000000000`, `\"start_time\":2000000000`},
+					{`\"start_time\":3000000000`, `\"start_time\":4000000000`},
 				},
 				numBatches: 2,
 			},
@@ -449,7 +449,7 @@ func TestReceiveTracesBatches(t *testing.T) {
 			}(),
 			want: wantType{
 				batches: [][]string{
-					{`"start_time":1`, `"start_time":2`, `"start_time":3`, `"start_time":4`, `"start_time":7`, `"start_time":8`, `"start_time":9`},
+					{`\"start_time\":1000000000`, `\"start_time\":2000000000`, `\"start_time\":3000000000`, `\"start_time\":4000000000`, `\"start_time\":7000000000`, `\"start_time\":8000000000`, `\"start_time\":9000000000`},
 				},
 				numBatches: 1,
 			},
@@ -478,7 +478,7 @@ func TestReceiveTracesBatches(t *testing.T) {
 			}(),
 			want: wantType{
 				batches: [][]string{
-					{`"start_time":1`, `"start_time":2`, `"start_time":3`, `"start_time":4`, `"start_time":7`, `"start_time":8`, `"start_time":9`, `"start_time":20`, `"start_time":40`, `"start_time":85`, `"start_time":98`, `"start_time":99`},
+					{`\"start_time\":1000000000`, `\"start_time\":2000000000`, `\"start_time\":3000000000`, `\"start_time\":4000000000`, `\"start_time\":7000000000`, `\"start_time\":8000000000`, `\"start_time\":9000000000`, `\"start_time\":20000000000`, `\"start_time\":40000000000`, `\"start_time\":85000000000`, `\"start_time\":98000000000`, `\"start_time\":99000000000`},
 				},
 				numBatches: 1,
 			},
@@ -493,7 +493,7 @@ func TestReceiveTracesBatches(t *testing.T) {
 				return cfg
 			}(),
 			want: wantType{
-				numBatches: 7,
+				numBatches: 8,
 			},
 		},
 	}

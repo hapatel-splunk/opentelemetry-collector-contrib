@@ -5,6 +5,7 @@ package splunkhecexporter
 
 import (
 	"encoding/hex"
+	"encoding/json"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -116,38 +117,40 @@ func commonSplunkEvent(
 	name string,
 	ts pcommon.Timestamp,
 ) *splunk.Event {
+	hs := hecSpan{Name: name, StartTime: ts,
+		TraceID:    "",
+		SpanID:     "",
+		ParentSpan: "",
+		Attributes: map[string]any{
+			"foo": "bar",
+		},
+		EndTime: 0x0,
+		Kind:    "SPAN_KIND_UNSPECIFIED",
+		Status:  hecSpanStatus{Message: "", Code: "STATUS_CODE_UNSET"},
+		Events: []hecEvent{
+			{
+				Attributes: map[string]any{"foo": "bar"},
+				Name:       "myEvent",
+				Timestamp:  ts + 3,
+			},
+		},
+		Links: []hecLink{
+			{
+				Attributes: map[string]any{"foo": int64(1), "bar": false, "foobar": []any{"a", "b"}},
+				TraceID:    "12345678000000000000000000000000",
+				SpanID:     "1234000000000000",
+				TraceState: "OK",
+			},
+		},
+	}
+	eventStr, _ := json.Marshal(hs)
 	return &splunk.Event{
 		Time:       timestampToSecondsWithMillisecondPrecision(ts),
 		Host:       "myhost",
 		Source:     "myservice",
 		SourceType: "mysourcetype",
 		Index:      "myindex",
-		Event: hecSpan{Name: name, StartTime: ts,
-			TraceID:    "",
-			SpanID:     "",
-			ParentSpan: "",
-			Attributes: map[string]any{
-				"foo": "bar",
-			},
-			EndTime: 0x0,
-			Kind:    "SPAN_KIND_UNSPECIFIED",
-			Status:  hecSpanStatus{Message: "", Code: "STATUS_CODE_UNSET"},
-			Events: []hecEvent{
-				{
-					Attributes: map[string]any{"foo": "bar"},
-					Name:       "myEvent",
-					Timestamp:  ts + 3,
-				},
-			},
-			Links: []hecLink{
-				{
-					Attributes: map[string]any{"foo": int64(1), "bar": false, "foobar": []any{"a", "b"}},
-					TraceID:    "12345678000000000000000000000000",
-					SpanID:     "1234000000000000",
-					TraceState: "OK",
-				},
-			},
-		},
-		Fields: map[string]any{},
+		Event:      string(eventStr),
+		Fields:     map[string]any{},
 	}
 }

@@ -69,7 +69,7 @@ func Test_SplunkHecToLogData(t *testing.T) {
 					Source:     "mysource",
 					SourceType: "mysourcetype",
 					Index:      "myindex",
-					Event:      12.3,
+					Event:      "12.3",
 					Fields: map[string]any{
 						"foo": "bar",
 					},
@@ -92,7 +92,7 @@ func Test_SplunkHecToLogData(t *testing.T) {
 					Source:     "mysource",
 					SourceType: "mysourcetype",
 					Index:      "myindex",
-					Event:      []any{"foo", "bar"},
+					Event:      `["foo","bar"]`,
 					Fields: map[string]any{
 						"foo": "bar",
 					},
@@ -119,7 +119,7 @@ func Test_SplunkHecToLogData(t *testing.T) {
 					Source:     "mysource",
 					SourceType: "mysourcetype",
 					Index:      "myindex",
-					Event:      map[string]any{"foos": []any{"foo", "bar", "foobar"}, "bool": false, "someInt": int64(12)},
+					Event:      `{"bool":false,"foos":["foo","bar","foobar"],"someInt":12}`,
 					Fields: map[string]any{
 						"foo": "bar",
 					},

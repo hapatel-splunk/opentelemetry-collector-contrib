@@ -5,7 +5,9 @@ package splunkhecexporter // import "github.com/open-telemetry/opentelemetry-col
 
 import (
 	"encoding/hex"
+	"errors"
 	"fmt"
+	"math"
 	"time"
 
 	"github.com/goccy/go-json"
@@ -15,6 +17,8 @@ import (
 	"github.com/open-telemetry/opentelemetry-collector-contrib/internal/splunk"
 )
 
+var errUnsupportedEventValue = errors.New("unsupported value for event body")
+
 const (
 	// Keys are taken from https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/logs/overview.md#trace-context-in-legacy-formats.
 	// spanIDFieldKey is the key used in log event for the span id (if any).
@@ -23,11 +27,11 @@ const (
 	traceIDFieldKey = "trace_id"
 )
 
-func mapLogRecordToSplunkEvent(res pcommon.Resource, lr plog.LogRecord, config *Config) *splunk.Event {
+func mapLogRecordToSplunkEvent(res pcommon.Resource, lr plog.LogRecord, config *Config) (*splunk.Event, error) {
 	body := lr.Body().AsRaw()
-	if body == nil || body == "" {
-		// events with no body are rejected by Splunk.
-		return nil
+	bodyStr, err := convertToEventString(body)
+	if err != nil {
+		return nil, err
 	}
 
 	host := unknownHostName
@@ -95,8 +99,35 @@ func mapLogRecordToSplunkEvent(res pcommon.Resource, lr plog.LogRecord, config *
 		Source:     source,
 		SourceType: sourcetype,
 		Index:      index,
-		Event:      body,
+		Event:      bodyStr,
 		Fields:     fields,
+	}, nil
+}
+
+// convertToEventString converts log body (any) to string for Event.Event.
+// Returns error for nil, empty string, or unsupported values (Inf, NaN).
+func convertToEventString(body any) (string, error) {
+	if body == nil || body == "" {
+		return "", errUnsupportedEventValue
+	}
+	switch v := body.(type) {
+	case string:
+		return v, nil
+	case float64:
+		if math.IsInf(v, 0) || math.IsNaN(v) {
+			return "", fmt.Errorf("%w: %v", errUnsupportedEventValue, v)
+		}
+		return fmt.Sprint(v), nil
+	case map[string]any, []any:
+		b, err := json.MarshalWithOption(v, json.DisableHTMLEscape())
+		if err != nil {
+			return "", fmt.Errorf("%w: %v", errUnsupportedEventValue, err)
+		}
+		return string(b), nil
+	case int64, bool:
+		return fmt.Sprint(v), nil
+	default:
+		return fmt.Sprint(body), nil
 	}
 }
 
@@ -111,7 +142,7 @@ func mergeValue(dst map[string]any, k string, v any) {
 		if isArrayFlat(element) {
 			dst[k] = v
 		} else {
-			b, _ := json.Marshal(element)
+			b, _ := json.MarshalWithOption(element, json.DisableHTMLEscape())
 			dst[k] = string(b)
 		}
 	case map[string]any:
@@ -141,7 +172,7 @@ func flattenAndMergeMap(src, dst map[string]any, key string) {
 			if isArrayFlat(element) {
 				dst[current] = element
 			} else {
-				b, _ := json.Marshal(element)
+				b, _ := json.MarshalWithOption(element, json.DisableHTMLEscape())
 				dst[current] = string(b)
 			}
 

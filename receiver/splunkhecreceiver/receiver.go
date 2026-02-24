@@ -480,13 +480,8 @@ func (r *splunkReceiver) handleReq(resp http.ResponseWriter, req *http.Request) 
 			}
 			metricEvents = append(metricEvents, msg)
 		} else {
-			if msg.Event == nil {
-				r.failRequest(resp, http.StatusBadRequest, eventRequiredRespBody, nil)
-				return
-			}
-
 			if msg.Event == "" {
-				r.failRequest(resp, http.StatusBadRequest, eventBlankRespBody, nil)
+				r.failRequest(resp, http.StatusBadRequest, eventRequiredRespBody, nil)
 				return
 			}
 

@@ -4,12 +4,26 @@
 package splunkhecexporter // import "github.com/open-telemetry/opentelemetry-collector-contrib/exporter/splunkhecexporter"
 
 import (
+	"bytes"
+	"encoding/json"
+
 	"go.opentelemetry.io/collector/pdata/pcommon"
 	"go.opentelemetry.io/collector/pdata/ptrace"
 
 	"github.com/open-telemetry/opentelemetry-collector-contrib/internal/coreinternal/traceutil"
 	"github.com/open-telemetry/opentelemetry-collector-contrib/internal/splunk"
 )
+
+// marshalNoHTMLEscape marshals v to JSON without escaping <, >, and &.
+func marshalNoHTMLEscape(v any) ([]byte, error) {
+	var buf bytes.Buffer
+	enc := json.NewEncoder(&buf)
+	enc.SetEscapeHTML(false)
+	if err := enc.Encode(v); err != nil {
+		return nil, err
+	}
+	return bytes.TrimRight(buf.Bytes(), "\n"), nil
+}
 
 // hecEvent is a data structure holding a span event to export explicitly to Splunk HEC.
 type hecEvent struct {
@@ -76,13 +90,19 @@ func mapSpanToSplunkEvent(resource pcommon.Resource, span ptrace.Span, config *C
 		return true
 	})
 
+	hecSpanData := toHecSpan(span)
+	eventStr, err := marshalNoHTMLEscape(hecSpanData)
+	if err != nil {
+		return nil
+	}
+
 	se := &splunk.Event{
 		Time:       timestampToSecondsWithMillisecondPrecision(span.StartTimestamp()),
 		Host:       host,
 		Source:     source,
 		SourceType: sourceType,
 		Index:      index,
-		Event:      toHecSpan(span),
+		Event:      string(eventStr),
 		Fields:     commonFields,
 	}
 

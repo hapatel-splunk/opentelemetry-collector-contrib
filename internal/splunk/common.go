@@ -4,7 +4,9 @@
 package splunk // import "github.com/open-telemetry/opentelemetry-collector-contrib/internal/splunk"
 
 import (
+	"bytes"
 	"encoding/json"
+	"fmt"
 	"regexp"
 	"strconv"
 	"strings"
@@ -53,7 +55,7 @@ type Event struct {
 	Source     string         `json:"source,omitempty"`     // optional description of the source of the event; typically the app's name
 	SourceType string         `json:"sourcetype,omitempty"` // optional name of a Splunk parsing configuration; this is usually inferred by Splunk
 	Index      string         `json:"index,omitempty"`      // optional name of the Splunk index to store the event in; not required if the token has a default index set in Splunk
-	Event      any            `json:"event"`                // type of event: set to "metric" or nil if the event represents a metric, or is the payload of the event.
+	Event      string         `json:"event"`                // type of event: set to "metric" or empty if the event represents a metric, or is the payload of the event.
 	Fields     map[string]any `json:"fields,omitempty"`     // dimensions and metric data
 }
 
@@ -89,6 +91,37 @@ func (e *Event) GetMetricValues() map[string]any {
 	return values
 }
 
+// marshalNoHTMLEscape marshals v to JSON without escaping <, >, and &.
+func marshalNoHTMLEscape(v any) ([]byte, error) {
+	var buf bytes.Buffer
+	enc := json.NewEncoder(&buf)
+	enc.SetEscapeHTML(false)
+	if err := enc.Encode(v); err != nil {
+		return nil, err
+	}
+	return bytes.TrimRight(buf.Bytes(), "\n"), nil
+}
+
+// eventAnyToString converts a JSON-unmarshaled event value to string.
+// nil -> ""; string -> as-is; numbers/bool -> fmt.Sprint; objects/arrays -> json.Marshal (no HTML escape).
+func eventAnyToString(v any) string {
+	if v == nil {
+		return ""
+	}
+	switch val := v.(type) {
+	case string:
+		return val
+	case map[string]any, []any:
+		b, err := marshalNoHTMLEscape(val)
+		if err != nil {
+			return ""
+		}
+		return string(b)
+	default:
+		return fmt.Sprint(val)
+	}
+}
+
 // UnmarshalJSON unmarshals the JSON representation of an event
 func (e *Event) UnmarshalJSON(b []byte) error {
 	rawEvent := struct {
@@ -104,12 +137,13 @@ func (e *Event) UnmarshalJSON(b []byte) error {
 	if err != nil {
 		return err
 	}
+	eventStr := eventAnyToString(rawEvent.Event)
 	*e = Event{
 		Host:       rawEvent.Host,
 		Source:     rawEvent.Source,
 		SourceType: rawEvent.SourceType,
 		Index:      rawEvent.Index,
-		Event:      rawEvent.Event,
+		Event:      eventStr,
 		Fields:     rawEvent.Fields,
 	}
 	switch t := rawEvent.Time.(type) {

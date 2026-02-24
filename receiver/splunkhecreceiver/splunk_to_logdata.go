@@ -5,10 +5,12 @@ package splunkhecreceiver // import "github.com/open-telemetry/opentelemetry-col
 
 import (
 	"bufio"
+	"encoding/json"
 	"errors"
 	"io"
 	"net/url"
 	"sort"
+	"strings"
 
 	"go.opentelemetry.io/collector/pdata/pcommon"
 	"go.opentelemetry.io/collector/pdata/plog"
@@ -27,6 +29,21 @@ const (
 )
 
 var errCannotConvertValue = errors.New("cannot convert field value to attribute")
+
+// parseEventToValue converts event.Event (string) to pcommon.Value. If the string is JSON
+// (object or array), it is unmarshaled and converted; otherwise it is set as a plain string.
+func parseEventToValue(logger *zap.Logger, eventStr string, dest pcommon.Value) error {
+	trimmed := strings.TrimSpace(eventStr)
+	if (strings.HasPrefix(trimmed, "{") && strings.HasSuffix(trimmed, "}")) ||
+		(strings.HasPrefix(trimmed, "[") && strings.HasSuffix(trimmed, "]")) {
+		var parsed any
+		if err := json.Unmarshal([]byte(eventStr), &parsed); err == nil {
+			return convertToValue(logger, parsed, dest)
+		}
+	}
+	dest.SetStr(eventStr)
+	return nil
+}
 
 // splunkHecToLogData transforms splunk events into logs
 func splunkHecToLogData(logger *zap.Logger, events []*splunk.Event, resourceCustomizer func(pcommon.Resource), config *Config) (plog.Logs, error) {
@@ -48,7 +65,7 @@ func splunkHecToLogData(logger *zap.Logger, events []*splunk.Event, resourceCust
 
 		// The SourceType field is the most logical "name" of the event.
 		logRecord := sl.LogRecords().AppendEmpty()
-		if err := convertToValue(logger, event.Event, logRecord.Body()); err != nil {
+		if err := parseEventToValue(logger, event.Event, logRecord.Body()); err != nil {
 			return ld, err
 		}
 
