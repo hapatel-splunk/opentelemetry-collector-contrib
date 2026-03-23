@@ -1,0 +1,19 @@
+type: tcp_input
+
+status:
+  class: pkg
+  stability:
+    beta: [logs]
+  codeowners:
+    active: [djaglowski]
+
+telemetry:
+  metrics:
+    tcp_input_active_connections:
+      description: Number of active TCP connections.
+      unit: "1"
+      enabled: true
+      stability: development
+      sum:
+        value_type: int
+        monotonic: false
