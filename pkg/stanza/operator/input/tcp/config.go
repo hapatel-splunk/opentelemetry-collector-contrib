@@ -19,6 +19,7 @@ import (
 	"github.com/open-telemetry/opentelemetry-collector-contrib/internal/coreinternal/textutils"
 	"github.com/open-telemetry/opentelemetry-collector-contrib/pkg/stanza/operator"
 	"github.com/open-telemetry/opentelemetry-collector-contrib/pkg/stanza/operator/helper"
+	"github.com/open-telemetry/opentelemetry-collector-contrib/pkg/stanza/operator/input/tcp/internal/metadata"
 	"github.com/open-telemetry/opentelemetry-collector-contrib/pkg/stanza/split"
 	"github.com/open-telemetry/opentelemetry-collector-contrib/pkg/stanza/trim"
 )
@@ -33,6 +34,9 @@ const (
 	// DefaultMaxLogSize is the max buffer sized used
 	// if MaxLogSize is not set
 	DefaultMaxLogSize = 1024 * 1024
+
+	// DefaultConnectionIdleTimeout is the default timeout for idle connections.
+	DefaultConnectionIdleTimeout = time.Minute
 )
 
 func init() {
@@ -63,15 +67,17 @@ type Config struct {
 
 // BaseConfig is the detailed configuration of a tcp input operator.
 type BaseConfig struct {
-	MaxLogSize       helper.ByteSize         `mapstructure:"max_log_size,omitempty"`
-	ListenAddress    string                  `mapstructure:"listen_address,omitempty"`
-	TLS              *configtls.ServerConfig `mapstructure:"tls,omitempty"`
-	AddAttributes    bool                    `mapstructure:"add_attributes,omitempty"`
-	OneLogPerPacket  bool                    `mapstructure:"one_log_per_packet,omitempty"`
-	Encoding         string                  `mapstructure:"encoding,omitempty"`
-	SplitConfig      split.Config            `mapstructure:"multiline,omitempty"`
-	TrimConfig       trim.Config             `mapstructure:",squash"`
-	SplitFuncBuilder SplitFuncBuilder        `mapstructure:"-"`
+	MaxLogSize            helper.ByteSize         `mapstructure:"max_log_size,omitempty"`
+	ListenAddress         string                  `mapstructure:"listen_address,omitempty"`
+	TLS                   *configtls.ServerConfig `mapstructure:"tls,omitempty"`
+	AddAttributes         bool                    `mapstructure:"add_attributes,omitempty"`
+	OneLogPerPacket       bool                    `mapstructure:"one_log_per_packet,omitempty"`
+	Encoding              string                  `mapstructure:"encoding,omitempty"`
+	SplitConfig           split.Config            `mapstructure:"multiline,omitempty"`
+	TrimConfig            trim.Config             `mapstructure:",squash"`
+	SplitFuncBuilder      SplitFuncBuilder        `mapstructure:"-"`
+	MaxConnections        int                     `mapstructure:"max_connections,omitempty"`
+	ConnectionIdleTimeout string                  `mapstructure:"connection_idle_timeout,omitempty"`
 }
 
 type SplitFuncBuilder func(enc encoding.Encoding) (bufio.SplitFunc, error)
@@ -126,6 +132,24 @@ func (c Config) Build(set component.TelemetrySettings) (operator.Operator, error
 		resolver = helper.NewIPResolver()
 	}
 
+	if c.MaxConnections < 0 {
+		return nil, fmt.Errorf("invalid value for parameter 'max_connections', must be greater than or equal to 0")
+	}
+
+	connectionIdleTimeout := DefaultConnectionIdleTimeout
+	if len(c.ConnectionIdleTimeout) > 0 {
+		if timeout, terr := time.ParseDuration(c.ConnectionIdleTimeout); terr == nil {
+			connectionIdleTimeout = timeout
+		} else {
+			return nil, fmt.Errorf("invalid 'connection_idle_timeout' value")
+		}
+	}
+
+	tb, err := metadata.NewTelemetryBuilder(set)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create telemetry builder: %w", err)
+	}
+
 	tcpInput := &Input{
 		InputOperator:   inputOperator,
 		address:         c.ListenAddress,
@@ -137,7 +161,10 @@ func (c Config) Build(set component.TelemetrySettings) (operator.Operator, error
 		backoff: backoff.Backoff{
 			Max: 3 * time.Second,
 		},
-		resolver: resolver,
+		resolver:              resolver,
+		maxConnections:        c.MaxConnections,
+		connectionIdleTimeout: connectionIdleTimeout,
+		tb:                    tb,
 	}
 
 	if c.TLS != nil {

@@ -19,6 +19,8 @@ The `tcp_input` operator listens for logs on one or more TCP connections. The op
 | `preserve_leading_whitespaces`          | false                | Whether to preserve leading whitespaces.                                                                                                                                                                                                                         |
 | `preserve_trailing_whitespaces`         | false                | Whether to preserve trailing whitespaces.                                                                                                                                                                                                                            |
 | `encoding`                              | `utf-8`              | The encoding of the file being read. See the list of supported encodings below for available options. |
+| `max_connections`                       | 0                    | The maximum number of open TCP connections allowed. 0 means unlimited. |
+| `connection_idle_timeout`               | `1m`                 | The maximum duration a TCP connection can be idle before being closed. |
 
 #### TLS Configuration
 
