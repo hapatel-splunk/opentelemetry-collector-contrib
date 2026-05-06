@@ -164,6 +164,7 @@ func (r *pReceiver) initPrometheusComponents(
 	}()
 
 	store, err := internal.NewAppendable(
+		ctx,
 		r.consumer,
 		r.settings,
 		!r.cfg.ignoreMetadata,

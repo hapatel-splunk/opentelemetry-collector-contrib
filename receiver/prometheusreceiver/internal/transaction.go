@@ -52,6 +52,7 @@ type transaction struct {
 	addingNativeHistogram bool // true if the last sample was a native histogram.
 	addingNHCB            bool // true if the last sample was a NHCB.
 	ctx                   context.Context
+	ctxCleanup            func() // cancels ctx and deregisters AfterFunc from shutdownCtx
 	families              map[resourceKey]map[scopeID]map[metricFamilyKey]*metricFamily
 	mc                    scrape.MetricMetadataStore
 	sink                  consumer.Metrics
@@ -77,6 +78,7 @@ type scopeID struct {
 
 func newTransaction(
 	ctx context.Context,
+	ctxCleanup func(),
 	sink consumer.Metrics,
 	externalLabels labels.Labels,
 	settings receiver.Settings,
@@ -86,6 +88,7 @@ func newTransaction(
 ) *transaction {
 	return &transaction{
 		ctx:                   ctx,
+		ctxCleanup:            ctxCleanup,
 		families:              make(map[resourceKey]map[scopeID]map[metricFamilyKey]*metricFamily),
 		isNew:                 true,
 		trimSuffixes:          trimSuffixes,
@@ -588,8 +591,16 @@ func (t *transaction) getJobAndInstance(labels labels.Labels) (*resourceKey, err
 }
 
 func (t *transaction) Commit() error {
+	defer t.ctxCleanup()
+
 	if t.isNew {
 		return nil
+	}
+
+	select {
+	case <-t.ctx.Done():
+		return errTransactionAborted
+	default:
 	}
 
 	ctx := t.obsrecv.StartMetricsOp(t.ctx)
@@ -601,6 +612,7 @@ func (t *transaction) Commit() error {
 
 	numPoints := md.DataPointCount()
 	if numPoints == 0 {
+		t.obsrecv.EndMetricsOp(ctx, dataformat, 0, nil)
 		return nil
 	}
 
@@ -609,7 +621,8 @@ func (t *transaction) Commit() error {
 	return err
 }
 
-func (*transaction) Rollback() error {
+func (t *transaction) Rollback() error {
+	t.ctxCleanup()
 	return nil
 }
 

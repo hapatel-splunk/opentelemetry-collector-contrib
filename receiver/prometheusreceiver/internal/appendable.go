@@ -20,6 +20,7 @@ type appendable struct {
 	useMetadata    bool
 	trimSuffixes   bool
 	externalLabels labels.Labels
+	shutdownCtx    context.Context
 
 	settings receiver.Settings
 	obsrecv  *receiverhelper.ObsReport
@@ -27,6 +28,7 @@ type appendable struct {
 
 // NewAppendable returns an appendable instance that emits metrics to the sink.
 func NewAppendable(
+	shutdownCtx context.Context,
 	sink consumer.Metrics,
 	set receiver.Settings,
 	useMetadata bool,
@@ -45,9 +47,16 @@ func NewAppendable(
 		externalLabels: externalLabels,
 		obsrecv:        obsrecv,
 		trimSuffixes:   trimSuffixes,
+		shutdownCtx:    shutdownCtx,
 	}, nil
 }
 
 func (o *appendable) AppenderV2(ctx context.Context) storage.AppenderV2 {
-	return newTransaction(ctx, o.sink, o.externalLabels, o.settings, o.obsrecv, o.trimSuffixes, o.useMetadata)
+	mergedCtx, cancel := context.WithCancel(ctx)
+	stop := context.AfterFunc(o.shutdownCtx, cancel)
+	ctxCleanup := func() {
+		stop()
+		cancel()
+	}
+	return newTransaction(mergedCtx, ctxCleanup, o.sink, o.externalLabels, o.settings, o.obsrecv, o.trimSuffixes, o.useMetadata)
 }
