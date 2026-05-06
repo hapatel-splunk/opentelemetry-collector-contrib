@@ -194,6 +194,7 @@ func newBenchmarkTransaction(b *testing.B) *transaction {
 
 	tx := newTransaction(
 		benchCtx,
+		func() {},
 		sink,
 		labels.EmptyLabels(), // no external labels
 		settings,
