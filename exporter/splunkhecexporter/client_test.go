@@ -1571,6 +1571,28 @@ func TestInvalidJson(t *testing.T) {
 	assert.Error(t, err)
 }
 
+func TestMarshalEventPreservesHTMLCharacters(t *testing.T) {
+	for _, tc := range []struct {
+		char string
+		esc  string
+	}{
+		{"<", `\u003c`},
+		{">", `\u003e`},
+		{"&", `\u0026`},
+	} {
+		event := &translator.Event{
+			Host:  "test",
+			Event: tc.char,
+		}
+		var buf bytes.Buffer
+		jsonErr, err := marshalEvent(event, 1024*1024, &buf)
+		require.NoError(t, jsonErr)
+		require.NoError(t, err)
+		assert.Contains(t, buf.String(), `"event":"`+tc.char+`"`)
+		assert.NotContains(t, buf.String(), tc.esc)
+	}
+}
+
 func Test_pushLogData_nil_Logs(t *testing.T) {
 	tests := []struct {
 		name     func(bool) string
