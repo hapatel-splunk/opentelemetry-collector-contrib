@@ -813,13 +813,15 @@ var jsonBufferPool = sync.Pool{
 	},
 }
 
-// marshalEvent marshals an event to JSON
+// marshalEvent marshals an event to JSON without HTML escaping, so that
+// characters like <, >, and & in Event.event are preserved as literal characters.
 func marshalEvent(event *translator.Event, sizeLimit uint, writer io.Writer) (error, error) {
 	buf := jsonBufferPool.Get().(*bytes.Buffer)
 	buf.Reset()
 	defer jsonBufferPool.Put(buf)
 
 	enc := json.NewEncoder(buf)
+	enc.SetEscapeHTML(false)
 	if err := enc.Encode(event); err != nil {
 		return nil, err
 	}
