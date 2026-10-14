@@ -6,6 +6,7 @@ package tcp
 import (
 	"path/filepath"
 	"testing"
+	"time"
 
 	"go.opentelemetry.io/collector/config/configtls"
 
@@ -32,7 +33,7 @@ func TestUnmarshal(t *testing.T) {
 					cfg.AddAttributes = true
 					cfg.Encoding = "utf-8"
 					cfg.MaxConnections = 5
-					cfg.ConnectionIdleTimeout = "30s"
+					cfg.ConnectionIdleTimeout = 30 * time.Second
 					cfg.SplitConfig.LineStartPattern = "ABC"
 					cfg.TLS = &configtls.ServerConfig{
 						Config: configtls.Config{

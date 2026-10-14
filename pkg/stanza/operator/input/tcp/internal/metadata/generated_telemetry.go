@@ -4,6 +4,7 @@ package metadata
 
 import (
 	"errors"
+	"sync"
 
 	"go.opentelemetry.io/collector/component"
 	"go.opentelemetry.io/otel/metric"
@@ -21,8 +22,11 @@ func Tracer(settings component.TelemetrySettings) trace.Tracer {
 // TelemetryBuilder provides an interface for components to report telemetry
 // as defined in metadata and user config.
 type TelemetryBuilder struct {
-	meter                     metric.Meter
-	TCPInputActiveConnections metric.Int64UpDownCounter
+	meter                      metric.Meter
+	mu                         sync.Mutex
+	registrations              []metric.Registration
+	TCPInputActiveConnections  metric.Int64UpDownCounter
+	TCPInputRefusedConnections metric.Int64Counter
 }
 
 // TelemetryBuilderOption applies changes to default builder.
@@ -36,6 +40,15 @@ func (tbof telemetryBuilderOptionFunc) apply(mb *TelemetryBuilder) {
 	tbof(mb)
 }
 
+// Shutdown unregister all registered callbacks for async instruments.
+func (builder *TelemetryBuilder) Shutdown() {
+	builder.mu.Lock()
+	defer builder.mu.Unlock()
+	for _, reg := range builder.registrations {
+		reg.Unregister()
+	}
+}
+
 // NewTelemetryBuilder provides a struct with methods to update all internal telemetry
 // for a component
 func NewTelemetryBuilder(settings component.TelemetrySettings, options ...TelemetryBuilderOption) (*TelemetryBuilder, error) {
@@ -47,7 +60,13 @@ func NewTelemetryBuilder(settings component.TelemetrySettings, options ...Teleme
 	var err, errs error
 	builder.TCPInputActiveConnections, err = builder.meter.Int64UpDownCounter(
 		"otelcol_tcp_input_active_connections",
-		metric.WithDescription("Number of active TCP connections."),
+		metric.WithDescription("Number of active TCP connections. [Development]"),
+		metric.WithUnit("1"),
+	)
+	errs = errors.Join(errs, err)
+	builder.TCPInputRefusedConnections, err = builder.meter.Int64Counter(
+		"otelcol_tcp_input_refused_connections",
+		metric.WithDescription("Number of TCP connections refused because the max_connections limit was reached. [Development]"),
 		metric.WithUnit("1"),
 	)
 	errs = errors.Join(errs, err)
