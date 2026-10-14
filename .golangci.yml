@@ -315,6 +315,12 @@ linters:
     modernize:
       disable:
         - importcomment
+        # Preserve upstream v0.158 source style after the Go 1.26 dependency bump.
+        - newexpr
+        - errorsastype
+        # These style analyzers were added by the required x/tools update.
+        - reflecttypeassert
+        - slicesclip
 
     nolintlint:
       require-specific: true

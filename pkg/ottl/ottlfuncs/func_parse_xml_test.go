@@ -17,11 +17,12 @@ import (
 
 func Test_ParseXML(t *testing.T) {
 	tests := []struct {
-		name        string
-		oArgs       ottl.Arguments
-		want        map[string]any
-		createError string
-		parseError  string
+		name              string
+		oArgs             ottl.Arguments
+		want              map[string]any
+		createError       string
+		parseError        string
+		parseErrorPattern string
 	}{
 		{
 			name: "Text values in nested elements",
@@ -290,7 +291,8 @@ func Test_ParseXML(t *testing.T) {
 					},
 				},
 			},
-			parseError: "exceeded maximum XML nesting depth",
+			// encoding/xml may reject the input before the package depth guard.
+			parseErrorPattern: "exceeded (maximum XML nesting depth|max depth)",
 		},
 	}
 
@@ -305,6 +307,13 @@ func Test_ParseXML(t *testing.T) {
 			require.NoError(t, err)
 
 			result, err := exprFunc(t.Context(), nil)
+			if tt.parseErrorPattern != "" {
+				require.Error(t, err)
+				require.Regexp(t, tt.parseErrorPattern, err.Error())
+				require.Nil(t, result)
+				return
+			}
+
 			if tt.parseError != "" {
 				require.ErrorContains(t, err, tt.parseError)
 				return

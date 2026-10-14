@@ -69,7 +69,7 @@ scrape_configs:
 	shutdown := func() {
 		shutdownOnce.Do(func() {
 			go func() {
-				shutdownErr = receiver.Shutdown(context.Background())
+				shutdownErr = receiver.Shutdown(t.Context())
 				close(shutdownDone)
 			}()
 		})
