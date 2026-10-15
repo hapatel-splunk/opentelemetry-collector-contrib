@@ -468,6 +468,9 @@ chlog-update:
 genotelcontribcol:
 	./internal/buildscripts/ocb-add-replaces.sh otelcontribcol
 	$(BUILDER) --skip-compilation --config cmd/otelcontribcol/builder-config-replaced.yaml
+	# Keep the generated bridge compatible with OTel logging v0.21.0.
+	cd ./cmd/otelcontribcol && $(GOCMD) mod edit -require=go.opentelemetry.io/contrib/bridges/otelzap@v0.20.0
+	cd ./cmd/otelcontribcol && $(GOCMD) mod tidy -compat=$(GO_COMPAT_VERSION)
 
 # Build the Collector executable.
 .PHONY: otelcontribcol
@@ -485,6 +488,9 @@ otelcontribcollite: genotelcontribcol
 genoteltestbedcol:
 	./internal/buildscripts/ocb-add-replaces.sh oteltestbedcol
 	$(BUILDER) --skip-compilation --config cmd/oteltestbedcol/builder-config-replaced.yaml
+	# Keep the generated bridge compatible with OTel logging v0.21.0.
+	cd ./cmd/oteltestbedcol && $(GOCMD) mod edit -require=go.opentelemetry.io/contrib/bridges/otelzap@v0.20.0
+	cd ./cmd/oteltestbedcol && $(GOCMD) mod tidy -compat=$(GO_COMPAT_VERSION)
 
 # Build the Collector executable, with only components used in testbed.
 .PHONY: oteltestbedcol
@@ -700,6 +706,7 @@ multimod-verify:
 .PHONY: multimod-prerelease
 multimod-prerelease:
 	$(MULTIMOD) prerelease -s=true -b=false -v ./versions.yaml -m contrib-base
+	$(MULTIMOD) prerelease -s=true -b=false -v ./versions.yaml -m stable-base
 	$(MAKE) gotidy
 
 .PHONY: multimod-sync

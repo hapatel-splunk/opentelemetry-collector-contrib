@@ -1934,7 +1934,7 @@ type blockingConsumer struct {
 	err     error
 }
 
-func (b *blockingConsumer) Capabilities() consumer.Capabilities {
+func (*blockingConsumer) Capabilities() consumer.Capabilities {
 	return consumer.Capabilities{}
 }
 
@@ -1948,7 +1948,7 @@ func (b *blockingConsumer) ConsumeMetrics(ctx context.Context, _ pmetric.Metrics
 }
 
 func TestTransactionCommitCanceledOnShutdown(t *testing.T) {
-	shutdownCtx, shutdown := context.WithCancel(context.Background())
+	shutdownCtx, shutdown := context.WithCancel(t.Context())
 
 	bc := &blockingConsumer{release: make(chan struct{})}
 	mergedCtx, cancel := context.WithCancel(scrapeCtx)

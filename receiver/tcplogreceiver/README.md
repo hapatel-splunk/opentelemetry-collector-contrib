@@ -30,7 +30,7 @@ The TCP Log Receiver receives logs over TCP.
 | `multiline`               |                      | A `multiline` configuration block. See below for details                                                           |
 | `encoding`                | `utf-8`              | The encoding of the file being read. See the list of supported encodings below for available options               |
 | `max_connections`         | 0                    | The maximum number of open TCP connections allowed. 0 means unlimited                                              |
-| `connection_idle_timeout` | `1m`                 | The maximum duration a TCP connection can be idle before being closed                                               |
+| `connection_idle_timeout` | 0                    | The maximum duration a TCP connection can be idle before being closed. 0 means no idle timeout                     |
 | `operators`               | []                   | An array of [operators](../../pkg/stanza/docs/operators/README.md#what-operators-are-available). See below for more details |
 | `retry_on_failure.enabled`            | `false`                              | If `true`, the receiver will pause reading a file and attempt to resend the current batch of logs if it encounters an error from downstream components.                                                                                                         |
 | `retry_on_failure.initial_interval`   | `1s`                                 | [Time](#time-parameters) to wait after the first failure before retrying.                                                                                                                                                                                       |

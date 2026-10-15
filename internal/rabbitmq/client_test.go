@@ -6,6 +6,8 @@ package rabbitmq
 import (
 	"context"
 	"crypto/tls"
+	"errors"
+	"net"
 	"runtime"
 	"sync"
 	"testing"
@@ -14,6 +16,7 @@ import (
 	amqp "github.com/rabbitmq/amqp091-go"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
 )
 
@@ -91,7 +94,7 @@ func TestDialConfig(t *testing.T) {
 	config := DialConfig{
 		URL:               "amqp://guest:guest@localhost:5672/",
 		Vhost:             "/",
-		Auth:              &amqp.PlainAuth{Username: "guest", Password: "guest"},
+		Auth:              func() amqp.Authentication { return &amqp.PlainAuth{Username: "guest", Password: "guest"} },
 		ConnectionTimeout: 10 * time.Second,
 		Heartbeat:         10 * time.Second,
 		TLS:               &tls.Config{},
@@ -116,6 +119,7 @@ func TestReconnectIfUnhealthy(t *testing.T) {
 		config: amqp.Config{
 			Vhost: "/",
 		},
+		authFactory: func() amqp.Authentication { return &amqp.PlainAuth{Username: "guest", Password: "guest"} },
 	}
 
 	connection.connectionErrors <- &amqp.Error{
@@ -131,6 +135,41 @@ func TestReconnectIfUnhealthy(t *testing.T) {
 	} else {
 		assert.ErrorContains(t, err, "connect: connection refused")
 	}
+}
+
+func TestReconnectRebuildsAuthentication(t *testing.T) {
+	connection := &connectionHolder{
+		url:      "amqp://localhost:5672/",
+		logger:   zap.NewNop(),
+		connLock: &sync.Mutex{},
+	}
+	factoryCalls := 0
+	connection.authFactory = func() amqp.Authentication {
+		factoryCalls++
+		return &amqp.PlainAuth{Username: "guest", Password: "guest"}
+	}
+
+	dialErr := errors.New("stop before AMQP handshake")
+	var previousAuth *amqp.PlainAuth
+	connection.config.Dial = func(_, _ string) (net.Conn, error) {
+		require.Len(t, connection.config.SASL, 1)
+		auth, ok := connection.config.SASL[0].(*amqp.PlainAuth)
+		require.True(t, ok)
+		assert.Equal(t, "guest", auth.Username)
+		assert.Equal(t, "guest", auth.Password)
+		if previousAuth != nil {
+			assert.NotSame(t, previousAuth, auth)
+		}
+		previousAuth = auth
+		// Simulate amqp091-go clearing credentials after a successful handshake.
+		auth.Password = ""
+		return nil, dialErr
+	}
+
+	for range 3 {
+		require.ErrorIs(t, connection.ReconnectIfUnhealthy(), dialErr)
+	}
+	assert.Equal(t, 3, factoryCalls)
 }
 
 func TestIsConnected(t *testing.T) {
