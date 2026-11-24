@@ -29,6 +29,7 @@ The following configuration options can also be configured:
 - `use_multi_metric_format` (default: false): Combines metrics with the same metadata to reduce ingest using the [multiple-metric JSON format](https://docs.splunk.com/Documentation/Splunk/9.0.0/Metrics/GetMetricsInOther#The_multiple-metric_JSON_format). Applicable in the `metrics` pipeline only.
 - `disable_compression` (default: false): Whether to disable gzip compression over HTTP.
 - `timeout` (default: 10s): HTTP timeout when sending data.
+- `discard_on_status_codes` (default: `[400, 401, 403]`): Which permanent HEC HTTP responses discard a rejected batch. Omit a status to retry it under the configured retry policy, or set `[]` to retry all three. Persistent failures can fill the queue and cause backpressure. Other HTTP responses keep their existing handling.
 - `http2_read_idle_timeout` (default = 10s): Send a ping frame for a health check if the connection has been idle for the configured value.
   0s means http/2 health check will be disabled.
 - `http2_ping_timeout` (default = 10s): Triggered by `http2_read_idle_timeout`; When there's no response to the ping within the configured value,

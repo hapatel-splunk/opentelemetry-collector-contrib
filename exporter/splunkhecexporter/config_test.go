@@ -144,6 +144,35 @@ func TestLoadConfig(t *testing.T) {
 	}
 }
 
+func TestDiscardOnStatusCodesConfig(t *testing.T) {
+	t.Parallel()
+
+	for _, tt := range []struct {
+		name    string
+		data    map[string]any
+		want    []int
+		wantErr bool
+	}{
+		{name: "omitted"},
+		{name: "subset", data: map[string]any{"discard_on_status_codes": []any{400, 401}}, want: []int{400, 401}},
+		{name: "empty", data: map[string]any{"discard_on_status_codes": []any{}}, want: []int{}},
+		{name: "invalid", data: map[string]any{"discard_on_status_codes": []any{429}}, wantErr: true},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			cfg := createDefaultConfig().(*Config)
+			cfg.Token = "token"
+			cfg.ClientConfig.Endpoint = "https://example.com"
+			require.NoError(t, confmap.NewFromStringMap(tt.data).Unmarshal(cfg))
+			if tt.wantErr {
+				require.ErrorContains(t, confmap.Validate(cfg), "invalid \"discard_on_status_codes\" value 429")
+				return
+			}
+			require.NoError(t, confmap.Validate(cfg))
+			assert.Equal(t, tt.want, cfg.DiscardOnStatusCodes)
+		})
+	}
+}
+
 func TestConfig_Validate(t *testing.T) {
 	tests := []struct {
 		name    string

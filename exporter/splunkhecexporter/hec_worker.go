@@ -6,9 +6,11 @@ package splunkhecexporter // import "github.com/open-telemetry/opentelemetry-col
 import (
 	"bytes"
 	"context"
+	"errors"
 	"io"
 	"net/http"
 	"net/url"
+	"slices"
 
 	"go.opentelemetry.io/collector/consumer/consumererror"
 	"go.uber.org/zap"
@@ -21,10 +23,11 @@ type hecWorker interface {
 }
 
 type defaultHecWorker struct {
-	url     *url.URL
-	client  *http.Client
-	headers map[string]string
-	logger  *zap.Logger
+	url                  *url.URL
+	client               *http.Client
+	headers              map[string]string
+	logger               *zap.Logger
+	discardOnStatusCodes []int
 }
 
 func (hec *defaultHecWorker) send(ctx context.Context, buf buffer, headers map[string]string) error {
@@ -64,6 +67,10 @@ func (hec *defaultHecWorker) send(ctx context.Context, buf buffer, headers map[s
 
 	err = splunk.HandleHTTPCode(resp)
 	if err != nil {
+		if hec.discardOnStatusCodes != nil && consumererror.IsPermanent(err) &&
+			!slices.Contains(hec.discardOnStatusCodes, resp.StatusCode) {
+			return errors.Unwrap(err)
+		}
 		return err
 	}
 

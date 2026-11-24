@@ -6,6 +6,7 @@ package splunkhecexporter // import "github.com/open-telemetry/opentelemetry-col
 import (
 	"errors"
 	"fmt"
+	"net/http"
 	"net/url"
 	"path"
 	"time"
@@ -60,6 +61,10 @@ type Config struct {
 	ClientConfig  confighttp.ClientConfig                                  `mapstructure:",squash"`
 	QueueSettings configoptional.Optional[exporterhelper.QueueBatchConfig] `mapstructure:"sending_queue"`
 	BackOffConfig configretry.BackOffConfig                                `mapstructure:"retry_on_failure"`
+
+	// DiscardOnStatusCodes overrides which permanent HEC HTTP errors discard a batch.
+	// A nil list keeps the default. An empty list makes all permanent HTTP errors retryable.
+	DiscardOnStatusCodes []int `mapstructure:"discard_on_status_codes"`
 
 	// LogDataEnabled can be used to disable sending logs by the exporter.
 	LogDataEnabled bool `mapstructure:"log_data_enabled"`
@@ -156,6 +161,14 @@ func (cfg *Config) Validate() error {
 	}
 	if cfg.Token == "" {
 		return errors.New(`requires a non-empty "token"`)
+	}
+
+	for _, status := range cfg.DiscardOnStatusCodes {
+		switch status {
+		case http.StatusBadRequest, http.StatusUnauthorized, http.StatusForbidden:
+		default:
+			return fmt.Errorf(`invalid "discard_on_status_codes" value %d: expected 400, 401, or 403`, status)
+		}
 	}
 
 	if cfg.MaxContentLengthLogs > maxContentLengthLogsLimit {
