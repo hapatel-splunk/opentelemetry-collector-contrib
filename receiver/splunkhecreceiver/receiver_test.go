@@ -159,6 +159,16 @@ func Test_splunkhecReceiver_handleReq(t *testing.T) {
 			},
 		},
 		{
+			name:           "event with escaped quotes",
+			req:            httptest.NewRequest(http.MethodPost, "http://localhost/foo", strings.NewReader(`{"event":"service said \"ready\""}`)),
+			assertResponse: assertHecSuccessResponse,
+			assertSink: func(t *testing.T, sink *consumertest.LogsSink) {
+				require.Equal(t, 1, sink.LogRecordCount())
+				record := sink.AllLogs()[0].ResourceLogs().At(0).ScopeLogs().At(0).LogRecords().At(0)
+				assert.Equal(t, `service said "ready"`, record.Body().Str())
+			},
+		},
+		{
 			name: "multiple events",
 			req: func() *http.Request {
 				splunkMsg2 := buildSplunkHecMsg(currentTime, 1)
