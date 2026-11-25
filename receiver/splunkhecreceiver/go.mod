@@ -6,6 +6,7 @@ require (
 	github.com/goccy/go-json v0.10.6
 	github.com/google/uuid v1.6.0
 	github.com/gorilla/mux v1.8.1
+	github.com/json-iterator/go v1.1.12
 	github.com/open-telemetry/opentelemetry-collector-contrib/exporter/splunkhecexporter v0.156.0
 	github.com/open-telemetry/opentelemetry-collector-contrib/extension/ackextension v0.156.0
 	github.com/open-telemetry/opentelemetry-collector-contrib/internal/common v0.156.0
@@ -52,7 +53,6 @@ require (
 	github.com/google/pprof v0.0.0-20260507013755-92041b743c96 // indirect
 	github.com/hashicorp/go-version v1.9.0 // indirect
 	github.com/hashicorp/golang-lru/v2 v2.0.7 // indirect
-	github.com/json-iterator/go v1.1.12 // indirect
 	github.com/klauspost/compress v1.18.7 // indirect
 	github.com/klauspost/cpuid/v2 v2.2.10 // indirect
 	github.com/knadh/koanf/maps v0.1.2 // indirect

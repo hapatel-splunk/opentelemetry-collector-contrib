@@ -1,0 +1,4 @@
+change_type: bug_fix
+component: receiver/splunk_hec
+note: Restore json-iterator for streaming Splunk HEC events to address slow decoding of certain inputs.
+issues: [53552]

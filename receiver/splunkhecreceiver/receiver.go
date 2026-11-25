@@ -18,6 +18,7 @@ import (
 	"github.com/goccy/go-json"
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
+	jsoniter "github.com/json-iterator/go"
 	"go.opentelemetry.io/collector/component"
 	"go.opentelemetry.io/collector/component/componentstatus"
 	"go.opentelemetry.io/collector/consumer"
@@ -408,7 +409,7 @@ func (r *splunkReceiver) handleReq(resp http.ResponseWriter, req *http.Request) 
 		return
 	}
 
-	dec := json.NewDecoder(bodyReader)
+	dec := jsoniter.NewDecoder(bodyReader)
 
 	var unfiltered []*translator.Event
 	var firstEvent any
